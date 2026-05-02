@@ -10,7 +10,6 @@ local player = Players.LocalPlayer
 local arquivoSave = "BHB_SkinsSalvas.json"
 local skins = {}
 
--- Carrega as skins salvas se o arquivo existir
 if isfile and isfile(arquivoSave) then
 	local sucesso, resultado = pcall(function()
 		return HttpService:JSONDecode(readfile(arquivoSave))
@@ -20,7 +19,6 @@ if isfile and isfile(arquivoSave) then
 	end
 end
 
--- Função para salvar as skins no arquivo
 local function salvarSkinsNoArquivo()
 	if writefile then
 		writefile(arquivoSave, HttpService:JSONEncode(skins))
@@ -54,6 +52,17 @@ mainFrame.Parent = screenGui
 local uiCornerMain = Instance.new("UICorner")
 uiCornerMain.CornerRadius = UDim.new(0, 10)
 uiCornerMain.Parent = mainFrame
+
+-- === SISTEMA DE ABRIR/FECHAR COM O "CONTROL" ===
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	-- Ignora se o jogador estiver digitando no chat ou em uma caixa de texto
+	if gameProcessed then return end
+	
+	-- Verifica se a tecla apertada foi o Control (Esquerdo ou Direito)
+	if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
+		screenGui.Enabled = not screenGui.Enabled
+	end
+end)
 
 -- === SISTEMA DE DRAG (ARRASTAR) ===
 local dragging, dragInput, dragStart, startPos
@@ -100,7 +109,10 @@ closeBtn.TextSize = 16
 closeBtn.Parent = mainFrame
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
 
-closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() end)
+-- O botão X agora apenas esconde a interface, igual a tecla Control
+closeBtn.MouseButton1Click:Connect(function() 
+	screenGui.Enabled = false 
+end)
 
 -- === FUNÇÃO DE APLICAR SKIN ===
 local function aplicarSkin(userId)
@@ -114,10 +126,13 @@ local function aplicarSkin(userId)
 		end)
 		
 		if not s then
-			-- Mostra um aviso na tela do Roblox se o executor falhar
+			-- Mostra o erro no console (F9) para você saber o motivo exato
+			warn("FALHA AO APLICAR SKIN: Seu executor não tem permissão de Client-Side para o ApplyDescription.")
+			warn("Erro gerado: " .. tostring(e))
+			
 			StarterGui:SetCore("SendNotification", {
-				Title = "Erro na Skin",
-				Text = "Seu executor não suporta isso ou o ID é inválido.",
+				Title = "Bloqueado pelo Executor",
+				Text = "Olhe o console (F9). O executor não tem permissão para isso.",
 				Duration = 5
 			})
 		end
@@ -140,7 +155,7 @@ Instance.new("UICorner", nomeInput).CornerRadius = UDim.new(0, 6)
 local idInput = Instance.new("TextBox")
 idInput.Size = UDim2.new(0.45, 0, 0, 35)
 idInput.Position = UDim2.new(0.5, 2, 0, 50)
-idInput.PlaceholderText = "ID do Jogador"
+idInput.PlaceholderText = "Somente ID (Números)"
 idInput.Text = ""
 idInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 idInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
@@ -185,14 +200,11 @@ listLayout.Padding = UDim.new(0, 5)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = scroll
 
--- Função para atualizar a lista visual
 local function atualizarLista()
-	-- Limpa os botões antigos
 	for _, child in ipairs(scroll:GetChildren()) do
 		if child:IsA("Frame") then child:Destroy() end
 	end
 	
-	-- Cria os botões atualizados
 	for i, skinData in ipairs(skins) do
 		local itemFrame = Instance.new("Frame")
 		itemFrame.Size = UDim2.new(1, -10, 0, 40)
@@ -250,11 +262,9 @@ salvarBtn.MouseButton1Click:Connect(function()
 		salvarSkinsNoArquivo()
 		atualizarLista()
 		
-		-- Limpa as caixas depois de salvar
 		nomeInput.Text = ""
 		idInput.Text = ""
 	end
 end)
 
--- Inicia a lista carregando o que já estava salvo
 atualizarLista()
