@@ -7,7 +7,7 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 
 -- === SISTEMA DE SALVAMENTO ===
-local arquivoSave = "BHB_Skins_V2.json"
+local arquivoSave = "BHB_Skins_V3.json"
 local skins = {}
 
 if isfile and isfile(arquivoSave) then
@@ -20,16 +20,16 @@ local function salvarSkins()
 end
 
 -- === PROTEÇÃO DE GUI ===
-if CoreGui:FindFirstChild("BHB_AvatarV2") then CoreGui.BHB_AvatarV2:Destroy() end
-if player:WaitForChild("PlayerGui"):FindFirstChild("BHB_AvatarV2") then player.PlayerGui.BHB_AvatarV2:Destroy() end
+if CoreGui:FindFirstChild("BHB_AvatarV3") then CoreGui.BHB_AvatarV3:Destroy() end
+if player:WaitForChild("PlayerGui"):FindFirstChild("BHB_AvatarV3") then player.PlayerGui.BHB_AvatarV3:Destroy() end
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "BHB_AvatarV2"
+screenGui.Name = "BHB_AvatarV3"
 screenGui.ResetOnSpawn = false
 pcall(function() screenGui.Parent = CoreGui end)
 if screenGui.Parent == nil then screenGui.Parent = player:WaitForChild("PlayerGui") end
 
--- === INTERFACE PREMIUM (BHB V2) ===
+-- === INTERFACE PRINCIPAL ===
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 380, 0, 480)
 mainFrame.Position = UDim2.new(0.5, -190, 0.5, -240)
@@ -39,21 +39,19 @@ mainFrame.Active = true
 mainFrame.Parent = screenGui
 
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
-
--- Borda Neon
 local strokeMain = Instance.new("UIStroke")
 strokeMain.Color = Color3.fromRGB(0, 150, 255)
 strokeMain.Thickness = 2
 strokeMain.Parent = mainFrame
 
--- Sistema de Toggle (Control)
+-- Toggle (Control)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if not gameProcessed and (input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl) then
 		screenGui.Enabled = not screenGui.Enabled
 	end
 end)
 
--- Sistema de Arrastar Suave
+-- Sistema de Arrastar
 local dragging, dragInput, dragStart, startPos
 mainFrame.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -75,11 +73,10 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
--- Título
 local titulo = Instance.new("TextLabel")
 titulo.Size = UDim2.new(1, -40, 0, 50)
 titulo.Position = UDim2.new(0, 20, 0, 0)
-titulo.Text = "BHB PLATAFORM V2"
+titulo.Text = "BHB PLATAFORM - Avatar"
 titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
 titulo.BackgroundTransparency = 1
 titulo.TextSize = 22
@@ -87,46 +84,57 @@ titulo.Font = Enum.Font.GothamBlack
 titulo.TextXAlignment = Enum.TextXAlignment.Left
 titulo.Parent = mainFrame
 
--- === MÉTODO BYPASS: APLICAÇÃO MANUAL ===
+-- === A CORREÇÃO DAS ROUPAS INVISÍVEIS ===
 local function aplicarSkinManual(userId)
 	local char = player.Character or player.CharacterAdded:Wait()
 	
-	-- Puxa as informações da skin do servidor do Roblox
+	-- 1. Limpa as roupas antigas para não sobrepor
+	for _, v in pairs(char:GetChildren()) do
+		if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") then
+			v:Destroy()
+		end
+	end
+	
 	local sucesso, desc = pcall(function()
 		return Players:GetHumanoidDescriptionFromUserId(userId)
 	end)
 	
 	if sucesso and desc then
-		-- Aplica o Rosto
+		-- Aplica o rosto
 		local head = char:FindFirstChild("Head")
 		if head then
 			local face = head:FindFirstChildOfClass("Decal")
-			if face and desc.Face ~= 0 then 
-				face.Texture = "rbxassetid://" .. desc.Face 
+			if face and desc.Face ~= 0 then face.Texture = "rbxassetid://" .. desc.Face end
+		end
+		
+		-- 2. Função blindada para forçar o download da textura real pelo executor
+		local function carregarRoupa(id, classe)
+			if id == 0 then return end
+			
+			local s, obj = pcall(function()
+				-- GetObjects burla o erro do "Catalog ID" puxando a roupa direto da base do Roblox
+				return game:GetObjects("rbxassetid://" .. id)[1]
+			end)
+			
+			if s and obj and obj:IsA(classe) then
+				obj.Parent = char
+			else
+				-- Caso o GetObjects falhe no seu executor, ele tenta o modo bruto
+				local fallback = Instance.new(classe)
+				if classe == "Shirt" then fallback.ShirtTemplate = "rbxassetid://" .. id
+				elseif classe == "Pants" then fallback.PantsTemplate = "rbxassetid://" .. id
+				elseif classe == "ShirtGraphic" then fallback.Graphic = "rbxassetid://" .. id end
+				fallback.Parent = char
 			end
 		end
 		
-		-- Aplica Camisa
-		if desc.Shirt ~= 0 then
-			local shirt = char:FindFirstChildOfClass("Shirt") or Instance.new("Shirt", char)
-			shirt.ShirtTemplate = "rbxassetid://" .. desc.Shirt
-		end
-		
-		-- Aplica Calça
-		if desc.Pants ~= 0 then
-			local pants = char:FindFirstChildOfClass("Pants") or Instance.new("Pants", char)
-			pants.PantsTemplate = "rbxassetid://" .. desc.Pants
-		end
-		
-		-- Aplica T-Shirt (Estampa)
-		if desc.GraphicTShirt ~= 0 then
-			local tshirt = char:FindFirstChildOfClass("ShirtGraphic") or Instance.new("ShirtGraphic", char)
-			tshirt.Graphic = "rbxassetid://" .. desc.GraphicTShirt
-		end
+		carregarRoupa(desc.Shirt, "Shirt")
+		carregarRoupa(desc.Pants, "Pants")
+		carregarRoupa(desc.GraphicTShirt, "ShirtGraphic")
 	end
 end
 
--- === INPUTS (CAIXAS DE TEXTO) ===
+-- === INPUTS E BOTÕES ===
 local function criarInput(placeholder, posX, posY, sizeX)
 	local txt = Instance.new("TextBox")
 	txt.Size = UDim2.new(sizeX, 0, 0, 40)
@@ -146,7 +154,6 @@ end
 local nomeInput = criarInput("Nome", 20, 60, 0.42)
 local idInput = criarInput("ID do Jogador", 195, 60, 0.42)
 
--- === BOTÕES (COM ANIMAÇÃO) ===
 local function criarBotao(texto, posX, posY, sizeX, corBase)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(sizeX, 0, 0, 40)
@@ -160,13 +167,8 @@ local function criarBotao(texto, posX, posY, sizeX, corBase)
 	btn.Parent = mainFrame
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 	
-	-- Efeito de Hover (Passar o mouse)
-	btn.MouseEnter:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(corBase.R*255 + 30, corBase.G*255 + 30, corBase.B*255 + 30)}):Play()
-	end)
-	btn.MouseLeave:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = corBase}):Play()
-	end)
+	btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(corBase.R*255 + 30, corBase.G*255 + 30, corBase.B*255 + 30)}):Play() end)
+	btn.MouseLeave:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = corBase}):Play() end)
 	
 	return btn
 end
@@ -174,7 +176,7 @@ end
 local equiparBtn = criarBotao("Equipar Agora", 20, 110, 0.42, Color3.fromRGB(80, 80, 100))
 local salvarBtn = criarBotao("Salvar Skin", 195, 110, 0.42, Color3.fromRGB(0, 130, 255))
 
--- === ÁREA DA LISTA (SCROLL) ===
+-- === ÁREA DA LISTA ===
 local scroll = Instance.new("ScrollingFrame")
 scroll.Size = UDim2.new(1, -40, 1, -180)
 scroll.Position = UDim2.new(0, 20, 0, 165)
@@ -224,10 +226,7 @@ local function atualizarLista()
 		btnDeletar.Parent = itemFrame
 		Instance.new("UICorner", btnDeletar).CornerRadius = UDim.new(0, 6)
 		
-		btnSkin.MouseButton1Click:Connect(function()
-			aplicarSkinManual(skinData.Id)
-		end)
-		
+		btnSkin.MouseButton1Click:Connect(function() aplicarSkinManual(skinData.Id) end)
 		btnDeletar.MouseButton1Click:Connect(function()
 			table.remove(skins, i)
 			salvarSkins()
@@ -237,7 +236,6 @@ local function atualizarLista()
 	scroll.CanvasSize = UDim2.new(0, 0, 0, #skins * 53)
 end
 
--- === LÓGICA DE CLIQUE DOS BOTÕES ===
 equiparBtn.MouseButton1Click:Connect(function()
 	local id = tonumber(idInput.Text)
 	if id then aplicarSkinManual(id) end
@@ -246,7 +244,6 @@ end)
 salvarBtn.MouseButton1Click:Connect(function()
 	local nome = nomeInput.Text
 	local id = tonumber(idInput.Text)
-	
 	if nome ~= "" and id then
 		table.insert(skins, {Nome = nome, Id = id})
 		salvarSkins()
