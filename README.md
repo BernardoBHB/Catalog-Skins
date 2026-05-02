@@ -1,20 +1,31 @@
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 
--- === SUA LISTA DE SKINS SALVAS ===
--- Aqui você pode colocar o ID da sua galera para ter acesso rápido
-local skins = {
-	{Nome = "Roblox Boy", Id = 1},
-	{Nome = "Bacon Hair", Id = 11169651}, 
-	{Nome = "Lucas (Exemplo)", Id = 156},
-	{Nome = "João Pedro (Exemplo)", Id = 167},
-	{Nome = "Filipe (Exemplo)", Id = 178},
-	{Nome = "Slender", Id = 4397524},
-	{Nome = "Korblox", Id = 132456} 
-}
+-- === SISTEMA DE SALVAMENTO (EXECUTOR) ===
+local arquivoSave = "BHB_SkinsSalvas.json"
+local skins = {}
+
+-- Carrega as skins salvas se o arquivo existir
+if isfile and isfile(arquivoSave) then
+	local sucesso, resultado = pcall(function()
+		return HttpService:JSONDecode(readfile(arquivoSave))
+	end)
+	if sucesso and type(resultado) == "table" then
+		skins = resultado
+	end
+end
+
+-- Função para salvar as skins no arquivo
+local function salvarSkinsNoArquivo()
+	if writefile then
+		writefile(arquivoSave, HttpService:JSONEncode(skins))
+	end
+end
 
 -- === PROTEÇÃO E CRIAÇÃO DA GUI ===
 if CoreGui:FindFirstChild("BHB_AvatarHub") then
@@ -33,8 +44,8 @@ if not success then screenGui.Parent = player:WaitForChild("PlayerGui") end
 
 -- === JANELA PRINCIPAL ===
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 350, 0, 500)
-mainFrame.Position = UDim2.new(0.5, -175, 0.5, -250)
+mainFrame.Size = UDim2.new(0, 350, 0, 450)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -225)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -70,7 +81,7 @@ end)
 local titulo = Instance.new("TextLabel")
 titulo.Size = UDim2.new(1, -40, 0, 40)
 titulo.Position = UDim2.new(0, 15, 0, 0)
-titulo.Text = "BHB PLATAFORM - Avatar Hub"
+titulo.Text = "BHB PLATAFORM - Avatar"
 titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
 titulo.BackgroundTransparency = 1
 titulo.TextSize = 18
@@ -95,110 +106,155 @@ closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() end)
 local function aplicarSkin(userId)
 	local character = player.Character or player.CharacterAdded:Wait()
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	
 	if humanoid then
-		pcall(function()
+		local s, e = pcall(function()
 			local humanoidDescription = Players:GetHumanoidDescriptionFromUserId(userId)
 			humanoid:ApplyDescription(humanoidDescription)
 		end)
+		
+		if not s then
+			-- Mostra um aviso na tela do Roblox se o executor falhar
+			StarterGui:SetCore("SendNotification", {
+				Title = "Erro na Skin",
+				Text = "Seu executor não suporta isso ou o ID é inválido.",
+				Duration = 5
+			})
+		end
 	end
 end
 
--- === SEÇÃO: ID CUSTOMIZADO ===
-local customIdBox = Instance.new("TextBox")
-customIdBox.Size = UDim2.new(0.65, 0, 0, 40)
-customIdBox.Position = UDim2.new(0, 15, 0, 50)
-customIdBox.PlaceholderText = "Digite qualquer ID..."
-customIdBox.Text = ""
-customIdBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-customIdBox.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-customIdBox.Font = Enum.Font.Gotham
-customIdBox.TextSize = 14
-customIdBox.Parent = mainFrame
-Instance.new("UICorner", customIdBox).CornerRadius = UDim.new(0, 6)
+-- === ÁREA DE ADICIONAR E SALVAR SKINS ===
+local nomeInput = Instance.new("TextBox")
+nomeInput.Size = UDim2.new(0.45, 0, 0, 35)
+nomeInput.Position = UDim2.new(0, 15, 0, 50)
+nomeInput.PlaceholderText = "Nome da Skin"
+nomeInput.Text = ""
+nomeInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+nomeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+nomeInput.Font = Enum.Font.Gotham
+nomeInput.TextSize = 14
+nomeInput.Parent = mainFrame
+Instance.new("UICorner", nomeInput).CornerRadius = UDim.new(0, 6)
 
-local equipCustomBtn = Instance.new("TextButton")
-equipCustomBtn.Size = UDim2.new(0.25, 0, 0, 40)
-equipCustomBtn.Position = UDim2.new(0.65, 25, 0, 50)
-equipCustomBtn.Text = "Equipar"
-equipCustomBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-equipCustomBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-equipCustomBtn.Font = Enum.Font.GothamBold
-equipCustomBtn.TextSize = 14
-equipCustomBtn.Parent = mainFrame
-Instance.new("UICorner", equipCustomBtn).CornerRadius = UDim.new(0, 6)
+local idInput = Instance.new("TextBox")
+idInput.Size = UDim2.new(0.45, 0, 0, 35)
+idInput.Position = UDim2.new(0.5, 2, 0, 50)
+idInput.PlaceholderText = "ID do Jogador"
+idInput.Text = ""
+idInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+idInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+idInput.Font = Enum.Font.Gotham
+idInput.TextSize = 14
+idInput.Parent = mainFrame
+Instance.new("UICorner", idInput).CornerRadius = UDim.new(0, 6)
 
-equipCustomBtn.MouseButton1Click:Connect(function()
-	local id = tonumber(customIdBox.Text)
-	if id then aplicarSkin(id) end
-end)
+local equiparBtn = Instance.new("TextButton")
+equiparBtn.Size = UDim2.new(0.45, 0, 0, 35)
+equiparBtn.Position = UDim2.new(0, 15, 0, 95)
+equiparBtn.Text = "Só Equipar"
+equiparBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+equiparBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 110)
+equiparBtn.Font = Enum.Font.GothamBold
+equiparBtn.TextSize = 14
+equiparBtn.Parent = mainFrame
+Instance.new("UICorner", equiparBtn).CornerRadius = UDim.new(0, 6)
 
--- === SEÇÃO: BARRA DE PESQUISA ===
-local searchBox = Instance.new("TextBox")
-searchBox.Size = UDim2.new(1, -30, 0, 35)
-searchBox.Position = UDim2.new(0, 15, 0, 100)
-searchBox.PlaceholderText = "Pesquisar skin salva..."
-searchBox.Text = ""
-searchBox.TextColor3 = Color3.fromRGB(200, 200, 200)
-searchBox.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-searchBox.Font = Enum.Font.Gotham
-searchBox.TextSize = 14
-searchBox.Parent = mainFrame
-Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 6)
+local salvarBtn = Instance.new("TextButton")
+salvarBtn.Size = UDim2.new(0.45, 0, 0, 35)
+salvarBtn.Position = UDim2.new(0.5, 2, 0, 95)
+salvarBtn.Text = "Salvar na Lista"
+salvarBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+salvarBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+salvarBtn.Font = Enum.Font.GothamBold
+salvarBtn.TextSize = 14
+salvarBtn.Parent = mainFrame
+Instance.new("UICorner", salvarBtn).CornerRadius = UDim.new(0, 6)
 
 -- === LISTA DE BOTÕES (SCROLL) ===
 local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1, -30, 1, -155)
-scroll.Position = UDim2.new(0, 15, 0, 145)
-scroll.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+scroll.Size = UDim2.new(1, -30, 1, -150)
+scroll.Position = UDim2.new(0, 15, 0, 140)
+scroll.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 scroll.ScrollBarThickness = 5
 scroll.BorderSizePixel = 0
 scroll.Parent = mainFrame
 
 local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 8)
+listLayout.Padding = UDim.new(0, 5)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = scroll
 
-local botoes = {}
-
--- Gera os botões da lista fixa
-for i, skinData in ipairs(skins) do
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, -10, 0, 45)
-	btn.Text = "  " .. skinData.Nome
-	btn.TextXAlignment = Enum.TextXAlignment.Left
-	btn.TextSize = 15
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-	btn.Font = Enum.Font.GothamMedium
-	btn.Parent = scroll
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-
-	btn.MouseButton1Click:Connect(function()
-		aplicarSkin(skinData.Id)
-	end)
+-- Função para atualizar a lista visual
+local function atualizarLista()
+	-- Limpa os botões antigos
+	for _, child in ipairs(scroll:GetChildren()) do
+		if child:IsA("Frame") then child:Destroy() end
+	end
 	
-	table.insert(botoes, {botao = btn, nome = string.lower(skinData.Nome)})
+	-- Cria os botões atualizados
+	for i, skinData in ipairs(skins) do
+		local itemFrame = Instance.new("Frame")
+		itemFrame.Size = UDim2.new(1, -10, 0, 40)
+		itemFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+		itemFrame.Parent = scroll
+		Instance.new("UICorner", itemFrame).CornerRadius = UDim.new(0, 6)
+		
+		local btnSkin = Instance.new("TextButton")
+		btnSkin.Size = UDim2.new(1, -40, 1, 0)
+		btnSkin.BackgroundTransparency = 1
+		btnSkin.Text = "  " .. skinData.Nome
+		btnSkin.TextXAlignment = Enum.TextXAlignment.Left
+		btnSkin.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btnSkin.Font = Enum.Font.GothamMedium
+		btnSkin.TextSize = 14
+		btnSkin.Parent = itemFrame
+		
+		local btnDeletar = Instance.new("TextButton")
+		btnDeletar.Size = UDim2.new(0, 30, 0, 30)
+		btnDeletar.Position = UDim2.new(1, -35, 0, 5)
+		btnDeletar.Text = "X"
+		btnDeletar.TextColor3 = Color3.fromRGB(255, 80, 80)
+		btnDeletar.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+		btnDeletar.Font = Enum.Font.GothamBold
+		btnDeletar.TextSize = 14
+		btnDeletar.Parent = itemFrame
+		Instance.new("UICorner", btnDeletar).CornerRadius = UDim.new(0, 6)
+		
+		btnSkin.MouseButton1Click:Connect(function()
+			aplicarSkin(skinData.Id)
+		end)
+		
+		btnDeletar.MouseButton1Click:Connect(function()
+			table.remove(skins, i)
+			salvarSkinsNoArquivo()
+			atualizarLista()
+		end)
+	end
+	
+	scroll.CanvasSize = UDim2.new(0, 0, 0, #skins * 45)
 end
 
--- Ajusta o tamanho do scroll de acordo com a quantidade de botões
-scroll.CanvasSize = UDim2.new(0, 0, 0, #skins * 53)
+-- === LÓGICA DOS BOTÕES SUPERIORES ===
+equiparBtn.MouseButton1Click:Connect(function()
+	local id = tonumber(idInput.Text)
+	if id then aplicarSkin(id) end
+end)
 
--- === LÓGICA DE PESQUISA ===
-searchBox.Changed:Connect(function(propriedade)
-	if propriedade == "Text" then
-		local textoPesquisa = string.lower(searchBox.Text)
-		local visiveis = 0
+salvarBtn.MouseButton1Click:Connect(function()
+	local nome = nomeInput.Text
+	local id = tonumber(idInput.Text)
+	
+	if nome ~= "" and id then
+		table.insert(skins, {Nome = nome, Id = id})
+		salvarSkinsNoArquivo()
+		atualizarLista()
 		
-		for _, dados in ipairs(botoes) do
-			if string.find(dados.nome, textoPesquisa) or textoPesquisa == "" then
-				dados.botao.Visible = true
-				visiveis = visiveis + 1
-			else
-				dados.botao.Visible = false
-			end
-		end
-		
-		scroll.CanvasSize = UDim2.new(0, 0, 0, visiveis * 53)
+		-- Limpa as caixas depois de salvar
+		nomeInput.Text = ""
+		idInput.Text = ""
 	end
 end)
+
+-- Inicia a lista carregando o que já estava salvo
+atualizarLista()
