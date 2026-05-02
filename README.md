@@ -7,7 +7,7 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 
 -- === SISTEMA DE SALVAMENTO ===
-local arquivoSave = "BHB_Skins_V4.json"
+local arquivoSave = "BHB_Skins_V5.json"
 local skins = {}
 
 if isfile and isfile(arquivoSave) then
@@ -20,11 +20,11 @@ local function salvarSkins()
 end
 
 -- === PROTEÇÃO DE GUI ===
-if CoreGui:FindFirstChild("BHB_AvatarV4") then CoreGui.BHB_AvatarV4:Destroy() end
-if player:WaitForChild("PlayerGui"):FindFirstChild("BHB_AvatarV4") then player.PlayerGui.BHB_AvatarV4:Destroy() end
+if CoreGui:FindFirstChild("BHB_AvatarV5") then CoreGui.BHB_AvatarV5:Destroy() end
+if player:WaitForChild("PlayerGui"):FindFirstChild("BHB_AvatarV5") then player.PlayerGui.BHB_AvatarV5:Destroy() end
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "BHB_AvatarV4"
+screenGui.Name = "BHB_AvatarV5"
 screenGui.ResetOnSpawn = false
 pcall(function() screenGui.Parent = CoreGui end)
 if screenGui.Parent == nil then screenGui.Parent = player:WaitForChild("PlayerGui") end
@@ -84,29 +84,40 @@ titulo.Font = Enum.Font.GothamBlack
 titulo.TextXAlignment = Enum.TextXAlignment.Left
 titulo.Parent = mainFrame
 
--- === A CORREÇÃO DEFINITIVA DAS ROUPAS ===
+-- === A CORREÇÃO DEFINITIVA (ROUPAS, CORES E 3D) ===
 local function aplicarSkinManual(userId)
 	local char = player.Character or player.CharacterAdded:Wait()
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
 	
-	-- Baixa a aparência real do personagem do Roblox (Converte Catálogo para Textura automaticamente)
+	-- Baixa a aparência completa do Roblox
 	local sucesso, appearance = pcall(function()
 		return Players:GetCharacterAppearanceAsync(userId)
 	end)
 	
 	if sucesso and appearance then
-		-- 1. Destrói apenas as roupas atuais do seu personagem para não bugar
+		-- 1. Destrói as roupas, cores e acessórios antigos do seu personagem
 		for _, v in pairs(char:GetChildren()) do
-			if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") then
+			if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") or v:IsA("Accessory") or v:IsA("BodyColors") then
 				v:Destroy()
 			end
 		end
 		
-		-- 2. Copia as roupas corretas baixadas para o seu personagem
+		-- 2. Copia os itens novos para o seu personagem
 		for _, item in pairs(appearance:GetChildren()) do
-			if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("ShirtGraphic") then
+			-- Roupas e Cores de Pele
+			if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("ShirtGraphic") or item:IsA("BodyColors") then
 				item:Clone().Parent = char
 				
-			-- Aproveita e já aplica o rosto correto também
+			-- Acessórios 3D (Cabelos, Chapéus, etc)
+			elseif item:IsA("Accessory") then
+				if humanoid then
+					-- O AddAccessory é a forma mais segura de equipar itens 3D sem quebrar o avatar
+					humanoid:AddAccessory(item:Clone())
+				else
+					item:Clone().Parent = char
+				end
+				
+			-- Rosto (Face)
 			elseif item:IsA("Decal") and item.Name == "face" then
 				local head = char:FindFirstChild("Head")
 				if head then
@@ -117,7 +128,7 @@ local function aplicarSkinManual(userId)
 			end
 		end
 		
-		-- Limpa o cache baixado
+		-- Limpa o lixo baixado da memória
 		appearance:Destroy()
 	end
 end
