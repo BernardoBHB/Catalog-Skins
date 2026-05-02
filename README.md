@@ -7,7 +7,7 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 
 -- === SISTEMA DE SALVAMENTO ===
-local arquivoSave = "BHB_Skins_V3.json"
+local arquivoSave = "BHB_Skins_V4.json"
 local skins = {}
 
 if isfile and isfile(arquivoSave) then
@@ -20,11 +20,11 @@ local function salvarSkins()
 end
 
 -- === PROTEÇÃO DE GUI ===
-if CoreGui:FindFirstChild("BHB_AvatarV3") then CoreGui.BHB_AvatarV3:Destroy() end
-if player:WaitForChild("PlayerGui"):FindFirstChild("BHB_AvatarV3") then player.PlayerGui.BHB_AvatarV3:Destroy() end
+if CoreGui:FindFirstChild("BHB_AvatarV4") then CoreGui.BHB_AvatarV4:Destroy() end
+if player:WaitForChild("PlayerGui"):FindFirstChild("BHB_AvatarV4") then player.PlayerGui.BHB_AvatarV4:Destroy() end
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "BHB_AvatarV3"
+screenGui.Name = "BHB_AvatarV4"
 screenGui.ResetOnSpawn = false
 pcall(function() screenGui.Parent = CoreGui end)
 if screenGui.Parent == nil then screenGui.Parent = player:WaitForChild("PlayerGui") end
@@ -84,53 +84,41 @@ titulo.Font = Enum.Font.GothamBlack
 titulo.TextXAlignment = Enum.TextXAlignment.Left
 titulo.Parent = mainFrame
 
--- === A CORREÇÃO DAS ROUPAS INVISÍVEIS ===
+-- === A CORREÇÃO DEFINITIVA DAS ROUPAS ===
 local function aplicarSkinManual(userId)
 	local char = player.Character or player.CharacterAdded:Wait()
 	
-	-- 1. Limpa as roupas antigas para não sobrepor
-	for _, v in pairs(char:GetChildren()) do
-		if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") then
-			v:Destroy()
-		end
-	end
-	
-	local sucesso, desc = pcall(function()
-		return Players:GetHumanoidDescriptionFromUserId(userId)
+	-- Baixa a aparência real do personagem do Roblox (Converte Catálogo para Textura automaticamente)
+	local sucesso, appearance = pcall(function()
+		return Players:GetCharacterAppearanceAsync(userId)
 	end)
 	
-	if sucesso and desc then
-		-- Aplica o rosto
-		local head = char:FindFirstChild("Head")
-		if head then
-			local face = head:FindFirstChildOfClass("Decal")
-			if face and desc.Face ~= 0 then face.Texture = "rbxassetid://" .. desc.Face end
-		end
-		
-		-- 2. Função blindada para forçar o download da textura real pelo executor
-		local function carregarRoupa(id, classe)
-			if id == 0 then return end
-			
-			local s, obj = pcall(function()
-				-- GetObjects burla o erro do "Catalog ID" puxando a roupa direto da base do Roblox
-				return game:GetObjects("rbxassetid://" .. id)[1]
-			end)
-			
-			if s and obj and obj:IsA(classe) then
-				obj.Parent = char
-			else
-				-- Caso o GetObjects falhe no seu executor, ele tenta o modo bruto
-				local fallback = Instance.new(classe)
-				if classe == "Shirt" then fallback.ShirtTemplate = "rbxassetid://" .. id
-				elseif classe == "Pants" then fallback.PantsTemplate = "rbxassetid://" .. id
-				elseif classe == "ShirtGraphic" then fallback.Graphic = "rbxassetid://" .. id end
-				fallback.Parent = char
+	if sucesso and appearance then
+		-- 1. Destrói apenas as roupas atuais do seu personagem para não bugar
+		for _, v in pairs(char:GetChildren()) do
+			if v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") then
+				v:Destroy()
 			end
 		end
 		
-		carregarRoupa(desc.Shirt, "Shirt")
-		carregarRoupa(desc.Pants, "Pants")
-		carregarRoupa(desc.GraphicTShirt, "ShirtGraphic")
+		-- 2. Copia as roupas corretas baixadas para o seu personagem
+		for _, item in pairs(appearance:GetChildren()) do
+			if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("ShirtGraphic") then
+				item:Clone().Parent = char
+				
+			-- Aproveita e já aplica o rosto correto também
+			elseif item:IsA("Decal") and item.Name == "face" then
+				local head = char:FindFirstChild("Head")
+				if head then
+					local oldFace = head:FindFirstChildOfClass("Decal")
+					if oldFace then oldFace:Destroy() end
+					item:Clone().Parent = head
+				end
+			end
+		end
+		
+		-- Limpa o cache baixado
+		appearance:Destroy()
 	end
 end
 
