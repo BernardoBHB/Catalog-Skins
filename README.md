@@ -4,7 +4,7 @@ local Players = game:GetService("Players")
 
 if RunService:IsServer() then
     -- ===================================================
-    -- 🖥️ PARTE 1: SERVIDOR (Muda o modelo para todos)
+    -- 🖥️ SERVIDOR (Agora aceita Modelos e limpa os IDs)
     -- ===================================================
     local evento = ReplicatedStorage:FindFirstChild("BHB_Event_Unico") 
     if not evento then
@@ -14,20 +14,52 @@ if RunService:IsServer() then
 
     evento.OnServerEvent:Connect(function(plr, nome, mesh, tex)
         local item = workspace:FindFirstChild(nome)
-        if not item then return end
         
-        local pfx = "rbxassetid://"
-        if item:IsA("MeshPart") then
-            item.MeshId = pfx .. mesh
-            if tex ~= "" then item.TextureID = pfx .. tex end
-        elseif item:IsA("Part") then
-            local sm = item:FindFirstChildOfClass("SpecialMesh") or Instance.new("SpecialMesh", item)
-            sm.MeshId = pfx .. mesh
-            if tex ~= "" then sm.TextureId = pfx .. tex end
+        -- Se o item não existir, avisa no Output
+        if not item then 
+            warn("❌ [BHB ERRO] O item '" .. nome .. "' não foi encontrado no Workspace! Verifique se o nome está escrito 100% igual.")
+            return 
+        end
+        
+        -- Extrai APENAS os números do que o jogador digitou (Ignora letras e links)
+        local idMesh = string.match(mesh, "%d+")
+        local idTex = string.match(tex, "%d+")
+
+        if not idMesh then
+            warn("❌ [BHB ERRO] O ID do Mesh precisa ter números!")
+            return
+        end
+
+        local linkMesh = "rbxassetid://" .. idMesh
+        local linkTex = idTex and ("rbxassetid://" .. idTex) or ""
+
+        -- Função que faz a substituição na peça
+        local function aplicarMudanca(peca)
+            if peca:IsA("MeshPart") then
+                peca.MeshId = linkMesh
+                if linkTex ~= "" then peca.TextureID = linkTex end
+            elseif peca:IsA("Part") then
+                local sm = peca:FindFirstChildOfClass("SpecialMesh") or Instance.new("SpecialMesh", peca)
+                sm.MeshId = linkMesh
+                if linkTex ~= "" then sm.TextureId = linkTex end
+            end
+        end
+
+        -- Se for um Modelo (várias peças juntas), muda todas as peças dentro dele
+        if item:IsA("Model") then
+            for _, descendente in ipairs(item:GetDescendants()) do
+                if descendente:IsA("BasePart") then
+                    aplicarMudanca(descendente)
+                end
+            end
+            print("✅ [BHB SUCESSO] Modelo '" .. nome .. "' inteiro atualizado!")
+        else
+            -- Se for uma peça solta
+            aplicarMudanca(item)
+            print("✅ [BHB SUCESSO] Peça '" .. nome .. "' atualizada!")
         end
     end)
 
-    -- Injeta a parte visual no jogador 
     local function injetarUi(player)
         local pg = player:WaitForChild("PlayerGui")
         local clone = script:Clone()
@@ -41,12 +73,11 @@ if RunService:IsServer() then
 
 elseif RunService:IsClient() then
     -- ===================================================
-    -- 🎮 PARTE 2: CLIENTE (Interface e tecla Control)
+    -- 🎮 CLIENTE (A mesma interface, sem alterações)
     -- ===================================================
     local player = Players.LocalPlayer
     local pg = player:WaitForChild("PlayerGui")
     
-    -- Evita duplicar se der reset
     if pg:FindFirstChild("BHB_UI_Main") then pg.BHB_UI_Main:Destroy() end
 
     local gui = Instance.new("ScreenGui", pg)
@@ -57,7 +88,7 @@ elseif RunService:IsClient() then
     frame.Size = UDim2.new(0, 300, 0, 260)
     frame.Position = UDim2.new(0.5, -150, 0.5, -130)
     frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    frame.Visible = false -- O PAINEL COMEÇA INVISÍVEL AQUI
+    frame.Visible = false 
 
     local function criarCaixa(txt, y)
         local cx = Instance.new("TextBox", frame)
@@ -89,11 +120,8 @@ elseif RunService:IsClient() then
         end
     end)
 
-    -- LÓGICA DA TECLA CONTROL PARA ABRIR/FECHAR
     game:GetService("UserInputService").InputBegan:Connect(function(input, digitando)
-        -- Se o jogador estiver digitando no chat ou em uma caixa, ignora
         if digitando then return end 
-        
         if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
             frame.Visible = not frame.Visible
         end
