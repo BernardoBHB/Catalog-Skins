@@ -1,129 +1,69 @@
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 
-if RunService:IsServer() then
-    -- ===================================================
-    -- 🖥️ SERVIDOR (Agora aceita Modelos e limpa os IDs)
-    -- ===================================================
-    local evento = ReplicatedStorage:FindFirstChild("BHB_Event_Unico") 
-    if not evento then
-        evento = Instance.new("RemoteEvent", ReplicatedStorage)
-        evento.Name = "BHB_Event_Unico"
-    end
+-- Caminho da pasta de entregas
+local pastaEntregas = workspace:WaitForChild("Entregas")
 
-    evento.OnServerEvent:Connect(function(plr, nome, mesh, tex)
-        local item = workspace:FindFirstChild(nome)
-        
-        -- Se o item não existir, avisa no Output
-        if not item then 
-            warn("❌ [BHB ERRO] O item '" .. nome .. "' não foi encontrado no Workspace! Verifique se o nome está escrito 100% igual.")
-            return 
-        end
-        
-        -- Extrai APENAS os números do que o jogador digitou (Ignora letras e links)
-        local idMesh = string.match(mesh, "%d+")
-        local idTex = string.match(tex, "%d+")
+-- Variável do Toggle (mude para false para parar o autofarm)
+local toggleAtivado = true 
 
-        if not idMesh then
-            warn("❌ [BHB ERRO] O ID do Mesh precisa ter números!")
-            return
-        end
+-- Função principal do Autofarm
+local function iniciarAutoFarm()
+    task.spawn(function()
+        -- Loop infinito que roda enquanto o jogador estiver no jogo
+        while task.wait(0.5) do 
+            -- Se o toggle estiver desligado, ele ignora o código abaixo e espera o próximo ciclo
+            if not toggleAtivado then continue end
+            
+            local character = player.Character
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+            
+            if not rootPart then continue end
 
-        local linkMesh = "rbxassetid://" .. idMesh
-        local linkTex = idTex and ("rbxassetid://" .. idTex) or ""
+            -- Procura por todas as casas dentro da pasta Entregas
+            for _, objeto in ipairs(pastaEntregas:GetChildren()) do
+                if objeto.Name == "Casa" then
+                    local pEntrega = objeto:FindFirstChild("PEntrega")
+                    local guiGps = objeto:FindFirstChild("GUI_GPS")
 
-        -- Função que faz a substituição na peça
-        local function aplicarMudanca(peca)
-            if peca:IsA("MeshPart") then
-                peca.MeshId = linkMesh
-                if linkTex ~= "" then peca.TextureID = linkTex end
-            elseif peca:IsA("Part") then
-                local sm = peca:FindFirstChildOfClass("SpecialMesh") or Instance.new("SpecialMesh", peca)
-                sm.MeshId = linkMesh
-                if linkTex ~= "" then sm.TextureId = linkTex end
-            end
-        end
+                    -- Verifica se a casa possui as duas partes necessárias
+                    if pEntrega and guiGps then
+                        -- Teleporta o jogador para a parte PEntrega
+                        -- Adicionamos +3 no eixo Y para o personagem não bugar dentro do chão
+                        rootPart.CFrame = pEntrega.CFrame + Vector3.new(0, 3, 0)
+                        
+                        -- Se houver um ProximityPrompt (Segurar "E") na parte PEntrega, podemos ativá-lo via script
+                        local prompt = pEntrega:FindFirstChildOfClass("ProximityPrompt")
+                        if prompt then
+                            prompt:InputHoldBegin()
+                            task.wait(prompt.HoldDuration + 0.1)
+                            prompt:InputHoldEnd()
+                        end
 
-        -- Se for um Modelo (várias peças juntas), muda todas as peças dentro dele
-        if item:IsA("Model") then
-            for _, descendente in ipairs(item:GetDescendants()) do
-                if descendente:IsA("BasePart") then
-                    aplicarMudanca(descendente)
+                        -- Pausa para evitar teleportes instantâneos repetidos na mesma casa
+                        task.wait(2)
+                        
+                        -- Quebra o loop 'for' para recomeçar a busca do zero no próximo ciclo do 'while'
+                        break 
+                    end
                 end
             end
-            print("✅ [BHB SUCESSO] Modelo '" .. nome .. "' inteiro atualizado!")
-        else
-            -- Se for uma peça solta
-            aplicarMudanca(item)
-            print("✅ [BHB SUCESSO] Peça '" .. nome .. "' atualizada!")
-        end
-    end)
-
-    local function injetarUi(player)
-        local pg = player:WaitForChild("PlayerGui")
-        local clone = script:Clone()
-        clone.Name = "BHB_ClientUI"
-        clone.RunContext = Enum.RunContext.Client
-        clone.Parent = pg
-    end
-
-    Players.PlayerAdded:Connect(injetarUi)
-    for _, p in ipairs(Players:GetPlayers()) do injetarUi(p) end
-
-elseif RunService:IsClient() then
-    -- ===================================================
-    -- 🎮 CLIENTE (A mesma interface, sem alterações)
-    -- ===================================================
-    local player = Players.LocalPlayer
-    local pg = player:WaitForChild("PlayerGui")
-    
-    if pg:FindFirstChild("BHB_UI_Main") then pg.BHB_UI_Main:Destroy() end
-
-    local gui = Instance.new("ScreenGui", pg)
-    gui.Name = "BHB_UI_Main"
-    gui.ResetOnSpawn = false
-
-    local frame = Instance.new("Frame", gui)
-    frame.Size = UDim2.new(0, 300, 0, 260)
-    frame.Position = UDim2.new(0.5, -150, 0.5, -130)
-    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    frame.Visible = false 
-
-    local function criarCaixa(txt, y)
-        local cx = Instance.new("TextBox", frame)
-        cx.Size = UDim2.new(0.9, 0, 0, 40)
-        cx.Position = UDim2.new(0.05, 0, y, 0)
-        cx.PlaceholderText = txt
-        cx.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        cx.TextColor3 = Color3.fromRGB(255, 255, 255)
-        cx.TextScaled = true
-        return cx
-    end
-
-    local inNome = criarCaixa("Nome do Item no Workspace", 0.1)
-    local inMesh = criarCaixa("ID do Mesh", 0.3)
-    local inTex = criarCaixa("ID da Textura (Opcional)", 0.5)
-
-    local btn = Instance.new("TextButton", frame)
-    btn.Size = UDim2.new(0.9, 0, 0, 40)
-    btn.Position = UDim2.new(0.05, 0, 0.75, 0)
-    btn.Text = "SUBSTITUIR MODELO"
-    btn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 20
-
-    btn.MouseButton1Click:Connect(function()
-        if inNome.Text ~= "" and inMesh.Text ~= "" then
-            ReplicatedStorage:WaitForChild("BHB_Event_Unico"):FireServer(inNome.Text, inMesh.Text, inTex.Text)
-        end
-    end)
-
-    game:GetService("UserInputService").InputBegan:Connect(function(input, digitando)
-        if digitando then return end 
-        if input.KeyCode == Enum.KeyCode.LeftControl or input.KeyCode == Enum.KeyCode.RightControl then
-            frame.Visible = not frame.Visible
         end
     end)
 end
+
+-- Inicia o loop
+iniciarAutoFarm()
+
+-- Exemplo de como você conectaria isso a um botão de UI (Toggle):
+--[[
+local botaoToggle = script.Parent -- Supondo que o script esteja dentro do botão
+botaoToggle.MouseButton1Click:Connect(function()
+    toggleAtivado = not toggleAtivado
+    if toggleAtivado then
+        botaoToggle.Text = "Autofarm: ON"
+    else
+        botaoToggle.Text = "Autofarm: OFF"
+    end
+end)
+]]--
